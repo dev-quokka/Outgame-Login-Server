@@ -12,7 +12,7 @@ bool OutGameLoginServer::init() {
         std::cout << "Failed to WSAStartup" << std::endl;
         return false;
     }
-
+    
     serverSkt = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, NULL, WSA_FLAG_OVERLAPPED);
     if (serverSkt == INVALID_SOCKET) {
         std::cout << "Failed to Create Server Socket" << std::endl;
@@ -48,6 +48,14 @@ bool OutGameLoginServer::init() {
 
     overLappedManager = new OverLappedManager;
     overLappedManager->init();
+
+    RedisConnection::GetInstance().Connect("127.0.0.1", 6379); // 레디스 연결
+    auto& redis = RedisConnection::GetInstance().GetRedis();
+
+    bool m = MySQLConnectionPool::GetInstance().init();
+    if (!m) {
+
+    }
 
     return true;
 }

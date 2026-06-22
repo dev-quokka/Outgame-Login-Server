@@ -30,12 +30,6 @@
     <ClCompile Include="MySQLConnectionPool.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="UserStateManager.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="EquipManager.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
     <ClCompile Include="OutGameLoginServer.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
@@ -60,12 +54,6 @@
       <Filter>헤더 파일\DB</Filter>
     </ClInclude>
     <ClInclude Include="RedisConnection.h">
-      <Filter>헤더 파일\Redis</Filter>
-    </ClInclude>
-    <ClInclude Include="EquipManager.h">
-      <Filter>헤더 파일\Redis</Filter>
-    </ClInclude>
-    <ClInclude Include="UserStateManager.h">
       <Filter>헤더 파일\Redis</Filter>
     </ClInclude>
     <ClInclude Include="UserRepository.h">

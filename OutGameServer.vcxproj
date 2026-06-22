@@ -138,13 +138,11 @@
   <ItemGroup>
     <ClCompile Include="CircularBuffer.cpp" />
     <ClCompile Include="ConnUsersManager.cpp" />
-    <ClCompile Include="EquipManager.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MySQLConnectionPool.cpp" />
     <ClCompile Include="OutGameLoginServer.cpp" />
     <ClCompile Include="OverLappedManager.cpp" />
     <ClCompile Include="RedisConnection.cpp" />
-    <ClCompile Include="UserStateManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CircularBuffer.h" />
@@ -152,7 +150,6 @@
     <ClInclude Include="ConnUsersManager.h" />
     <ClInclude Include="DBConfig.h" />
     <ClInclude Include="Define.h" />
-    <ClInclude Include="EquipManager.h" />
     <ClInclude Include="MySQLConnectionPool.h" />
     <ClInclude Include="OutGameLoginServer.h" />
     <ClInclude Include="OverLappedManager.h" />
@@ -160,7 +157,6 @@
     <ClInclude Include="RedisConnection.h" />
     <ClInclude Include="ServerChannelEnum.h" />
     <ClInclude Include="UserRepository.h" />
-    <ClInclude Include="UserStateManager.h" />
     <ClInclude Include="UserTypes.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

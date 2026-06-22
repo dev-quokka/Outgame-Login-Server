@@ -7,10 +7,12 @@
 #include "ConnUsersManager.h"
 #include "OverLappedManager.h"
 #include "ServerChannelEnum.h"
+#include "RedisConnection.h"
+#include "MySQLConnectionPool.h"
 
 class OutGameLoginServer {
 public:
-    OutGameLoginServer(uint16_t maxClientCount_) : maxClientCount(maxClientCount_), AcceptQueue(maxClientCount_), WaittingQueue(maxClientCount_) {}
+    OutGameLoginServer(uint16_t maxClientCount_) : maxClientCount(maxClientCount_), AcceptQueue(maxClientCount_) {}
     ~OutGameLoginServer() {}
 
     // ====================== INITIALIZATION =======================

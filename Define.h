@@ -15,7 +15,7 @@ constexpr uint32_t MAX_RECV_SIZE = 1024; // Set Max Recv Buf
 constexpr uint32_t MAX_CIRCLE_SIZE = 8096;
 
 constexpr uint16_t maxThreadCount = 4;
-constexpr uint16_t maxClientCount = 100;
+constexpr uint16_t maxClientCount = 1000;
 
 // ======================= IOCP EXTENDED OVERLAPPED STRUCT =======================
 
