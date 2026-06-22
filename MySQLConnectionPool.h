@@ -17,7 +17,9 @@ public:
 
 private:
 	MySQLConnectionPool() = default;
-	~MySQLConnectionPool() = default;
+	~MySQLConnectionPool() {
+		Shutdown();
+	}
 
 	std::mutex dbPoolMutex;
 	std::queue<MYSQL*> dbPool;

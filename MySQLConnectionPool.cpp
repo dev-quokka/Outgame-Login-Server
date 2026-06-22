@@ -18,7 +18,6 @@ MYSQL* MySQLConnectionPool::GetConnection() {
     return ConnPtr;
 };
 
-
 bool MySQLConnectionPool::init() {
     for (int i = 0; i < dbConnectionCount; i++) {
         MYSQL* Conn = mysql_init(nullptr);
@@ -39,7 +38,6 @@ bool MySQLConnectionPool::init() {
     std::cout << "Mysql Connection Success" << std::endl;
     return true;
 }
-
 
 void MySQLConnectionPool::Shutdown() {
     while (!dbPool.empty()) {
