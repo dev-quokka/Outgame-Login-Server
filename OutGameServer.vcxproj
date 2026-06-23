@@ -138,11 +138,12 @@
   <ItemGroup>
     <ClCompile Include="CircularBuffer.cpp" />
     <ClCompile Include="ConnUsersManager.cpp" />
+    <ClCompile Include="LoadBalancer.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MySQLConnectionPool.cpp" />
     <ClCompile Include="OutGameLoginServer.cpp" />
     <ClCompile Include="OverLappedManager.cpp" />
-    <ClCompile Include="RedisConnection.cpp" />
+    <ClCompile Include="RedisManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CircularBuffer.h" />
@@ -150,11 +151,12 @@
     <ClInclude Include="ConnUsersManager.h" />
     <ClInclude Include="DBConfig.h" />
     <ClInclude Include="Define.h" />
+    <ClInclude Include="LoadBalancer.h" />
     <ClInclude Include="MySQLConnectionPool.h" />
     <ClInclude Include="OutGameLoginServer.h" />
     <ClInclude Include="OverLappedManager.h" />
     <ClInclude Include="Packet.h" />
-    <ClInclude Include="RedisConnection.h" />
+    <ClInclude Include="RedisManager.h" />
     <ClInclude Include="ServerChannelEnum.h" />
     <ClInclude Include="UserRepository.h" />
     <ClInclude Include="UserTypes.h" />

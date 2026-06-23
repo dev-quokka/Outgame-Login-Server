@@ -24,7 +24,7 @@
     <ClCompile Include="main.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="RedisConnection.cpp">
+    <ClCompile Include="RedisManager.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="MySQLConnectionPool.cpp">
@@ -42,6 +42,9 @@
     <ClCompile Include="ConnUsersManager.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="LoadBalancer.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="UserTypes.h">
@@ -53,7 +56,7 @@
     <ClInclude Include="MySQLConnectionPool.h">
       <Filter>헤더 파일\DB</Filter>
     </ClInclude>
-    <ClInclude Include="RedisConnection.h">
+    <ClInclude Include="RedisManager.h">
       <Filter>헤더 파일\Redis</Filter>
     </ClInclude>
     <ClInclude Include="UserRepository.h">
@@ -81,6 +84,9 @@
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="ServerChannelEnum.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="LoadBalancer.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>

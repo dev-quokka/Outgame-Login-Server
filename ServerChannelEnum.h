@@ -14,19 +14,12 @@ enum class ServerType : uint16_t {
 
 	// Lobby Server (1~)
 	LobbyServer01 = 1,
-	LobbyServer02 = 2,
-
-};
-
-enum class ChannelServerType : uint16_t {
-	CH_01 = 1, // Channe Server1
-	CH_02 = 2, // Channe Server2
+	LobbyServer02 = 2
 };
 
 struct ServerAddress {
 	std::string ip;
 	uint16_t port;
-	uint16_t serverObjNum;
 };
 
 inline std::unordered_map<ServerType, ServerAddress> ServerAddressMap = {
