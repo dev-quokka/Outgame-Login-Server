@@ -8,7 +8,7 @@
 #include "OverLappedManager.h"
 #include "ServerChannelEnum.h"
 #include "RedisManager.h"
-#include "MySQLConnectionPool.h"
+#include "MySQLManager.h"
 
 class OutGameLoginServer {
 public:

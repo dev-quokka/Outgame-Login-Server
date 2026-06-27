@@ -52,7 +52,7 @@ bool OutGameLoginServer::init() {
     RedisManager::GetInstance().Connect("127.0.0.1", 6379); // 레디스 연결
     auto& redis = RedisManager::GetInstance().GetRedis();
 
-    bool m = MySQLConnectionPool::GetInstance().init();
+    bool m = MySQLManager::GetInstance().init();
     if (!m) {
 
     }

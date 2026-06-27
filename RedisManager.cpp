@@ -5,23 +5,23 @@ RedisManager& RedisManager::GetInstance() {
     return instance;
 }
 
-void RedisManager::Connect(const std::string& host, int port) {
-    sw::redis::ConnectionOptions opts;
-    opts.host = host;
-    opts.port = port;
-    opts.socket_timeout = std::chrono::seconds(10);
-    opts.keep_alive = true;
-
-    try {
-        redis = std::make_unique<sw::redis::Redis>(opts);
-        redis->ping();
-        std::cout << "[Redis] Connected to " << host << ":" << port << std::endl;
-    }
-    catch (const sw::redis::Error& e) {
-        std::cerr << "[Redis] Connection failed: " << e.what() << std::endl;
-        throw;  // 연결 실패하면 서버 시작 중단
-    }
-}
+//void RedisManager::Connect(const std::string& host, int port) {
+//    sw::redis::ConnectionOptions opts;
+//    opts.host = host;
+//    opts.port = port;
+//    opts.socket_timeout = std::chrono::seconds(10);
+//    opts.keep_alive = true;
+//
+//    try {
+//        redis = std::make_unique<sw::redis::Redis>(opts);
+//        redis->ping();
+//        std::cout << "[Redis] Connected to " << host << ":" << port << std::endl;
+//    }
+//    catch (const sw::redis::Error& e) {
+//        std::cerr << "[Redis] Connection failed: " << e.what() << std::endl;
+//        throw;  // 연결 실패하면 서버 시작 중단
+//    }
+//}
 
 sw::redis::Redis& RedisManager::GetRedis() {
     if (!redis) {
@@ -90,40 +90,23 @@ void RedisManager::Disconnect(uint16_t connObjNum_) {
 // ====================== REDIS MANAGEMENT =====================
 
 void RedisManager::RedisRun(const uint16_t RedisThreadCnt_) { // Connect Redis Server
-    
-    sw::redis::ConnectionOptions opts;
-    opts.host = host;
-    opts.port = port;
-    opts.socket_timeout = std::chrono::seconds(10);
-    opts.keep_alive = true;
-
     try {
+        sw::redis::ConnectionOptions opts;
+        opts.host = host;
+        opts.port = port;
+        opts.socket_timeout = std::chrono::seconds(10);
+        opts.keep_alive = true;
+
         redis = std::make_unique<sw::redis::Redis>(opts);
         redis->ping();
         std::cout << "[Redis] Connected to " << host << ":" << port << std::endl;
-    }
-    catch (const sw::redis::Error& e) {
-        std::cerr << "[Redis] Connection failed: " << e.what() << std::endl;
-        throw;  // 연결 실패하면 서버 시작 중단
-    }
-
-    try {
-        connection_options.host = "127.0.0.1";  // Redis Cluster IP
-        connection_options.port = 7001;  // Redis Cluster Master Node Port
-        connection_options.socket_timeout = std::chrono::seconds(10);
-        connection_options.keep_alive = true;
-
-        redis = std::make_unique<sw::redis::RedisCluster>(connection_options);
-        std::cout << "Redis Cluster Connected" << std::endl;
 
         CreateRedisThread(RedisThreadCnt_);
 
     }
     catch (const  sw::redis::Error& err) {
-        std::cout << "Redis Connect Error : " << err.what() << std::endl;
-    }
-    catch (const std::exception& e) {
-        std::cerr << "Exception error : " << e.what() << std::endl;
+        std::cerr << "[Redis] Connection failed: " << e.what() << std::endl;
+        throw;  // 연결 실패하면 서버 시작 중단
     }
 }
 
@@ -162,19 +145,88 @@ void RedisManager::RedisThread() {
 }
 
 
-void RedisManager::SetUserEquip(uint32_t userId, const Equipment& equip) {
-    // MySQL에서 불러온 equip로 함수 실행
-    auto& redis = RedisManager::GetInstance().GetRedis();
-
+void RedisManager::SetUserCostume(uint32_t userpk_, const Costume& costume_) {
     // MySQL에서 읽어온 장비를 map으로 구성
+
+
     std::unordered_map<std::string, std::string> fields = {
-        {"head", std::to_string(equip.head)},
-        {"body", std::to_string(equip.body)},
-        {"legs", std::to_string(equip.legs)},
-        {"feet", std::to_string(equip.feet)}
+        {"head", std::to_string(costume_.head)},
+        {"body", std::to_string(costume_.body)},
+        {"legs", std::to_string(costume_.legs)},
+        {"feet", std::to_string(costume_.feet)}
     };
 
     // 여러 필드 hset으로 한 번에 세팅
-    std::string key = "user:" + std::to_string(userId) + ":equip";
-    redis.hset(key, fields.begin(), fields.end());
+    std::string key = "user:" + std::to_string(userpk_) + ":costume";
+    redis->hset(key, fields.begin(), fields.end());
+}
+
+// ====================== UserState =======================
+
+void RedisManager::ProcessLogin(uint16_t connObjNum_, uint16_t packetSize_, char* pPacket_) {
+    auto loginReqPacket = reinterpret_cast<USER_LOGIN_REQUEST*>(pPacket_);
+
+    auto loginResult = MySQLManager::GetInstance().LoginCheck(std::string(loginReqPacket->userId), std::string(loginReqPacket->userPassword));
+
+    USER_LOGIN_RESPONSE loginRes;
+    loginRes.PacketId = (uint16_t)PACKET_ID::USER_LOGIN_RESPONSE;
+    loginRes.PacketLength = sizeof(USER_LOGIN_RESPONSE);
+
+    if (loginResult != std::nullopt) {
+        loginRes.isSuccess = true;
+        ProcessConnect(loginRes, );
+
+
+    }
+
+    connUsersManager->FindUser(connObjNum_)->PushSendMsg(sizeof(USER_LOGIN_RESPONSE), (char*)&loginRes);
+}
+
+void RedisManager::ProcessConnect(USER_LOGIN_RESPONSE& loginRes, uint32_t userpk_) {
+    // 유저 정보 불러와서 전달해주기 (DB)
+    auto tempUserInfo = MySQLManager::GetInstance().GetUserInfo(userpk_);
+    if (tempUserInfo == std::nullopt) {
+        
+        return;
+    }
+    loginRes.userinfo = tempUserInfo.value();
+
+
+    // 유저 화폐 불러와서 전달 (DB)
+    auto tempUserCurrency = MySQLManager::GetInstance().GetUserCurrency(userpk_);
+    if (tempUserCurrency == std::nullopt) {
+
+        return;
+    }
+    loginRes = tempUserCurrency.value();
+
+
+    // 유저 인벤토리 불러와서 전달 (DB)
+
+
+
+    // 현재 착용중인 코스튬 불러와서 전달 (DB) + 불러온 데이터 레디스에 올려두기 (Redis)
+    auto tempUserCostume = MySQLManager::GetInstance().GetUserCostume(userpk_);
+    if (tempUserCostume == std::nullopt) {
+
+        return;
+    }
+    loginRes.costume = tempUserCostume.value();
+
+
+    // 유저 서버 로드 밸런싱 후 해당 서버 정보 전달 + 서버 정보 레디스에 올려두기 (Redis)
+    auto tempServer = loadBalancer.SelectServer();
+    if (tempServer.ip == "") {
+        
+        return;
+    }
+
+    loginRes.ip = tempServer.ip;
+    loginRes.port = tempServer.port;
+
+
+    // JWT 토큰 생성 후 레디스에 올리기 (Redis)
+    
+
+
 }

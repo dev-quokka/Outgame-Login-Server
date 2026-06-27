@@ -7,10 +7,14 @@
 #include <stdexcept>
 #include <unordered_map>
 
-
 #include "Packet.h"
 #include "UserTypes.h"
 #include "ConnUsersManager.h"
+#include "MySQLManager.h"
+#include "LoadBalancer.h"
+
+constexpr const char* host = "127.0.0.1";
+constexpr int port = 6379;
 
 class RedisManager {
 public:
@@ -19,7 +23,6 @@ public:
 
 
     // ====================== INITIALIZATION =======================
-    void Connect(const std::string& host, int port);
     void Init(const uint16_t RedisThreadCnt_);
 
 
@@ -32,11 +35,12 @@ public:
 
 
     // ====================== Equipment =======================
-    void SetUserEquip(uint32_t userId, const Equipment& equip);
+    void SetUserCostume(uint32_t userpk_, const Costume& costume_);
 
 
     // ====================== UserState =======================
-    void SetUserState(...);
+    void ProcessLogin(uint16_t connObjNum_, uint16_t packetSize_, char* pPacket_);
+    void ProcessConnect(USER_LOGIN_RESPONSE& loginRes, uint32_t userpk_);
 
 
     RedisManager(const RedisManager&) = delete;
@@ -75,6 +79,7 @@ private:
     std::string buyItemSha;
 
     // 32 bytes
+    LoadBalancer loadBalancer;
     std::vector<std::thread> redisThreads;
 
     // 8 bytes

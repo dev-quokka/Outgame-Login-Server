@@ -27,7 +27,7 @@
     <ClCompile Include="RedisManager.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="MySQLConnectionPool.cpp">
+    <ClCompile Include="MySQLManager.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="OutGameLoginServer.cpp">
@@ -45,6 +45,9 @@
     <ClCompile Include="LoadBalancer.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="PasswordUtils.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="UserTypes.h">
@@ -53,7 +56,7 @@
     <ClInclude Include="DBConfig.h">
       <Filter>헤더 파일\DB</Filter>
     </ClInclude>
-    <ClInclude Include="MySQLConnectionPool.h">
+    <ClInclude Include="MySQLManager.h">
       <Filter>헤더 파일\DB</Filter>
     </ClInclude>
     <ClInclude Include="RedisManager.h">
@@ -87,6 +90,9 @@
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="LoadBalancer.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="PasswordUtils.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>
