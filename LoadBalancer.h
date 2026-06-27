@@ -9,15 +9,15 @@
 #include "ServerChannelEnum.h"
 
 struct LobbyServerInfo {
-    int serverId;
-    int userCount;
+    uint16_t serverId;
+    uint16_t userCount;
 };
 
 class LoadBalancer {
 public:
     // 살아있는 로비 서버 중 최소 인원 서버 선택
     // 반환값: 선택된 서버 정보 (없으면 ip = "")
-    ServerAddress SelectServer();
+    ReturnServerAddress SelectServer();
 
 private:
     // 살아있는 서버 목록 조회 (TTL 살아있는 키만 조회)

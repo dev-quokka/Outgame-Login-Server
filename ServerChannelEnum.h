@@ -18,8 +18,14 @@ enum class ServerType : uint16_t {
 };
 
 struct ServerAddress {
-	std::string ip;
+	char ip[16];
 	uint16_t port;
+};
+
+struct ReturnServerAddress {
+	char ip[16];
+	uint16_t port;
+	ServerType serverType;
 };
 
 inline std::unordered_map<ServerType, ServerAddress> ServerAddressMap = {
@@ -27,3 +33,11 @@ inline std::unordered_map<ServerType, ServerAddress> ServerAddressMap = {
 	{ ServerType::LobbyServer01, { "127.0.0.1", 9011 } },
 	{ ServerType::LobbyServer02, { "127.0.0.1", 9012 } }
 };
+
+inline std::string GetServerName(ServerType serverType_) {
+	switch (serverType_) {
+	case ServerType::LobbyServer01: return "LobbyServer01";
+	case ServerType::LobbyServer02: return "LobbyServer02";
+	default: return "Unknown";
+	}
+}

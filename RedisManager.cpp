@@ -146,20 +146,42 @@ void RedisManager::RedisThread() {
 
 
 void RedisManager::SetUserCostume(uint32_t userpk_, const Costume& costume_) {
-    // MySQL에서 읽어온 장비를 map으로 구성
-
-
-    std::unordered_map<std::string, std::string> fields = {
-        {"head", std::to_string(costume_.head)},
-        {"body", std::to_string(costume_.body)},
-        {"legs", std::to_string(costume_.legs)},
-        {"feet", std::to_string(costume_.feet)}
-    };
-
-    // 여러 필드 hset으로 한 번에 세팅
-    std::string key = "user:" + std::to_string(userpk_) + ":costume";
-    redis->hset(key, fields.begin(), fields.end());
+    try {
+        std::unordered_map<std::string, std::string> fields = { // 여러 필드 hset으로 한 번에 세팅
+            {"head", std::to_string(costume_.head)},
+            {"body", std::to_string(costume_.body)},
+            {"legs", std::to_string(costume_.legs)},
+            {"feet", std::to_string(costume_.feet)}
+        };
+        std::string key = "user:" + std::to_string(userpk_) + ":costume";
+        redis->hset(key, fields.begin(), fields.end());
+    }
+    catch (const std::exception& e) {
+        std::cerr << "[SetUserCostume] Redis error. userPk: " << userpk_ << " / " << e.what() << '\n';
+    }
 }
+
+void RedisManager::SetUserLocation(uint32_t userPk_, ServerType serverType_) {
+    std::string key = "user:" + std::to_string(userPk_);
+
+    try {
+        std::unordered_map<std::string, std::string> fields = {
+            {"server", GetServerName(serverType_)},  // enum 숫자 대신 "LobbyServer01"로 명시적으로 저장하기
+            {"state",  "lobby"}
+        };
+
+        redis->hset(key, fields.begin(), fields.end());
+        redis->expire(key, std::chrono::seconds(300));
+
+        std::cout << "[SetUserLocation] userPk: " << userPk_
+            << " / " << GetServerName(serverType_) << '\n';
+    }
+    catch (const std::exception& e) {
+        std::cerr << "[SetUserLocation] Redis error. userPk: "
+            << userPk_ << " / " << e.what() << '\n';
+    }
+}
+
 
 // ====================== UserState =======================
 
@@ -172,61 +194,85 @@ void RedisManager::ProcessLogin(uint16_t connObjNum_, uint16_t packetSize_, char
     loginRes.PacketId = (uint16_t)PACKET_ID::USER_LOGIN_RESPONSE;
     loginRes.PacketLength = sizeof(USER_LOGIN_RESPONSE);
 
-    if (loginResult != std::nullopt) {
-        loginRes.isSuccess = true;
-        ProcessConnect(loginRes, loginResult.value());
+    USER_INVENTORY_PACKET inventoryRes;
+    inventoryRes.PacketId = (uint16_t)PACKET_ID::USER_INVENTORY_PACKET;
+    inventoryRes.PacketLength = sizeof(USER_INVENTORY_PACKET);
 
+    if (loginResult.has_value()) {
+        ServerType serverType;
+        loginRes.isSuccess = ProcessConnect(loginRes, inventoryRes, loginResult.value(), serverType);
 
+        if (loginRes.isSuccess) { // 성공했을 때만 레디스 세팅하기
+            SetUserCostume(loginResult.value(), loginRes.costume);
+            SetUserLocation(loginResult.value(), serverType);
+        }
+    } 
+
+    auto user = connUsersManager->FindUser(connObjNum_);
+    user->PushSendMsg(sizeof(USER_LOGIN_RESPONSE), (char*)&loginRes);
+
+    // 인벤은 성공 시에만 전송
+    if (loginRes.isSuccess) {
+        user->PushSendMsg(sizeof(USER_INVENTORY_PACKET), (char*)&inventoryRes);
     }
-
-    connUsersManager->FindUser(connObjNum_)->PushSendMsg(sizeof(USER_LOGIN_RESPONSE), (char*)&loginRes);
 }
 
-void RedisManager::ProcessConnect(USER_LOGIN_RESPONSE& loginRes, uint32_t userpk_) {
+bool RedisManager::ProcessConnect(USER_LOGIN_RESPONSE& loginRes, USER_INVENTORY_PACKET& inventoryRes, uint32_t userPk_, ServerType& serverType_) {
+
     // 유저 정보 불러와서 전달해주기 (DB)
-    auto tempUserInfo = MySQLManager::GetInstance().GetUserInfo(userpk_);
+    auto tempUserInfo = MySQLManager::GetInstance().GetUserInfo(userPk_);
     if (tempUserInfo == std::nullopt) {
-        
-        return;
+        std::cerr << "[ProcessConnect] GetUserInfo failed. userPk: " << userPk_ << '\n';
+        return false;
     }
     loginRes.userinfo = tempUserInfo.value();
 
 
     // 유저 화폐 불러와서 전달 (DB)
-    auto tempUserCurrency = MySQLManager::GetInstance().GetUserCurrency(userpk_);
+    auto tempUserCurrency = MySQLManager::GetInstance().GetUserCurrency(userPk_);
     if (tempUserCurrency == std::nullopt) {
-
-        return;
+        std::cerr << "[ProcessConnect] GetUserCurrency failed. userPk: " << userPk_ << '\n';
+        return false;
     }
-    loginRes = tempUserCurrency.value();
-
-
-    // 유저 인벤토리 불러와서 전달 (DB)
-
+    loginRes.currency = tempUserCurrency.value();
 
 
     // 현재 착용중인 코스튬 불러와서 전달 (DB) + 불러온 데이터 레디스에 올려두기 (Redis)
-    auto tempUserCostume = MySQLManager::GetInstance().GetUserCostume(userpk_);
+    auto tempUserCostume = MySQLManager::GetInstance().GetUserCostume(userPk_);
     if (tempUserCostume == std::nullopt) {
-
-        return;
+        std::cerr << "[ProcessConnect] GetUserCostume failed. userPk: " << userPk_ << '\n';
+        return false;
     }
     loginRes.costume = tempUserCostume.value();
+
+
+    // 유저 인벤토리 불러와서 전달 (DB)
+    auto tempUserInventory = MySQLManager::GetInstance().GetUserInventory(userPk_);
+    if (tempUserInventory == std::nullopt) {
+        std::cerr << "[ProcessConnect] GetUserInventory failed. userPk: " << userPk_ << '\n';
+        return false;
+    }
+    auto& inventoryVec = tempUserInventory.value();
+    inventoryRes.itemCount = static_cast<uint16_t>(inventoryVec.size()); // 아이템 수 설정
+    for (int i = 0; i < (int)inventoryVec.size(); i++) {
+        inventoryRes.items[i] = inventoryVec[i];
+    }
 
 
     // 유저 서버 로드 밸런싱 후 해당 서버 정보 전달 + 서버 정보 레디스에 올려두기 (Redis)
     auto tempServer = loadBalancer.SelectServer();
     if (tempServer.ip == "") {
-        
-        return;
+        std::cerr << "[ProcessConnect] No available lobby servers. userPk: "
+            << userPk_ << '\n';
+        return false;
     }
-
-    loginRes.ip = tempServer.ip;
+    strncpy_s(loginRes.ip, sizeof(loginRes.ip), tempServer.ip, _TRUNCATE);
     loginRes.port = tempServer.port;
+    serverType_ = tempServer.serverType;
 
 
     // JWT 토큰 생성 후 레디스에 올리기 (Redis)
     
 
-
+    return true;
 }

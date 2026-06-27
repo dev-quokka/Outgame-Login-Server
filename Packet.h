@@ -8,11 +8,11 @@
 #include "UserTypes.h"
 
 constexpr uint16_t MAX_IP_LEN = 32;
-constexpr uint16_t MAX_SERVER_USERS = 128;
+constexpr uint16_t MAX_INVENTORY_SIZE = 100; // 최대 아이템 수
+constexpr uint16_t MAX_SERVER_USERS = 128;  
 constexpr uint16_t MAX_USER_ID_LEN = 256;
 constexpr uint16_t MAX_USER_PASSWORD_LEN = 256;
 constexpr uint16_t MAX_JWT_TOKEN_LEN = 256;
-constexpr uint16_t MAX_SCORE_SIZE = 512;
 
 struct DataPacket {
 	uint32_t dataSize;
@@ -43,30 +43,33 @@ struct USER_LOGIN_REQUEST : PACKET_HEADER { // 로그인 요청 패킷
 	char userPassword[MAX_USER_PASSWORD_LEN + 1];
 };
 
+//struct USER_LOGIN_RESPONSE : PACKET_HEADER { // 로그인 요청 응답 패킷
+//	UserInfo userinfo;
+//	std::string ip;
+//	Costume costume;
+//	Currency currency;
+//	uint16_t port;
+//	bool isSuccess = false;
+//};
+
 struct USER_LOGIN_RESPONSE : PACKET_HEADER { // 로그인 요청 응답 패킷
-	UserInfo userinfo;
-	std::string ip;
-	Costume costume;
-	Currency currency;
-	uint16_t port;
-	bool isSuccess = false;
+	bool          isSuccess = false;
+	UserInfo      userinfo;
+	Currency      currency;
+	Costume       costume;
+	char          ip[16];
+	uint16_t      port;
+	Server
 };
 
-struct USER_CONNECT_REQUEST_PACKET : PACKET_HEADER {
-
-};
-
-struct USER_CONNECT_RESPONSE_PACKET : PACKET_HEADER {
-	bool isSuccess = false;
-};
-
-struct USER_LOGOUT_REQUEST_PACKET : PACKET_HEADER {
-
+struct USER_INVENTORY_PACKET : PACKET_HEADER {
+	uint16_t		itemCount = 0;
+	InventoryItem   items[MAX_INVENTORY_SIZE];
 };
 
 struct SYNCRONIZE_LEVEL_REQUEST : PACKET_HEADER {
-	uint16_t level;
-	uint16_t userPk;
+	uint16_t	 level;
+	uint16_t	 userPk;
 	unsigned int currentExp;
 };
 
@@ -216,5 +219,5 @@ enum class PACKET_ID : uint16_t {
 	USER_LOGIN_REQUEST= 1,
 	USER_LOGIN_RESPONSE = 2,
 
-
+	USER_INVENTORY_PACKET = 3,
 };

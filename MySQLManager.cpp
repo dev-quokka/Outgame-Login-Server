@@ -304,6 +304,7 @@ std::optional<Costume> MySQLManager::GetUserCostume(uint32_t userPk_) {
 
 std::optional<Currency> MySQLManager::GetUserCurrency(uint32_t userPk_) {
     semaphore.acquire();
+
     MYSQL* ConnPtr = GetConnection();
     if (!ConnPtr) {
         std::cerr << "[GetUserCurrency] dbPool is empty.\n";
@@ -317,8 +318,7 @@ std::optional<Currency> MySQLManager::GetUserCurrency(uint32_t userPk_) {
             "SELECT bp, gcoin FROM user_currency WHERE user_pk = ?";
 
         if (mysql_stmt_prepare(stmt, query.c_str(), query.length()) != 0) {
-            std::cerr << "[GetUserCurrency] Prepare Error: "
-                << mysql_stmt_error(stmt) << '\n';
+            std::cerr << "[GetUserCurrency] Prepare Error: " << mysql_stmt_error(stmt) << '\n';
             mysql_stmt_close(stmt);
             return std::nullopt;
         }
@@ -331,15 +331,13 @@ std::optional<Currency> MySQLManager::GetUserCurrency(uint32_t userPk_) {
         param[0].is_unsigned = true;
 
         if (mysql_stmt_bind_param(stmt, param) != 0) {
-            std::cerr << "[GetUserCurrency] Bind Error: "
-                << mysql_stmt_error(stmt) << '\n';
+            std::cerr << "[GetUserCurrency] Bind Error: " << mysql_stmt_error(stmt) << '\n';
             mysql_stmt_close(stmt);
             return std::nullopt;
         }
 
         if (mysql_stmt_execute(stmt) != 0) {
-            std::cerr << "[GetUserCurrency] Execute Error: "
-                << mysql_stmt_error(stmt) << '\n';
+            std::cerr << "[GetUserCurrency] Execute Error: " << mysql_stmt_error(stmt) << '\n';
             mysql_stmt_close(stmt);
             return std::nullopt;
         }
@@ -378,6 +376,87 @@ std::optional<Currency> MySQLManager::GetUserCurrency(uint32_t userPk_) {
     }
     catch (const std::exception& e) {
         std::cerr << "[GetUserCurrency] Exception: " << e.what() << '\n';
+        return std::nullopt;
+    }
+}
+
+std::optional<std::vector<InventoryItem>> MySQLManager::GetUserInventory(uint32_t userPk_) {
+    semaphore.acquire();
+
+    MYSQL* ConnPtr = GetConnection();
+    if (!ConnPtr) {
+        std::cerr << "[GetUserInventory] dbPool is empty.\n";
+        return std::nullopt;
+    }
+    auto tempAutoConn = AutoConn(ConnPtr, dbPool, dbPoolMutex, semaphore);
+
+    try {
+        MYSQL_STMT* stmt = mysql_stmt_init(ConnPtr);
+        std::string query =
+            "SELECT item_code, item_type, quantity FROM user_inventory WHERE user_pk = ?";
+
+        if (mysql_stmt_prepare(stmt, query.c_str(), query.length()) != 0) {
+            std::cerr << "[GetUserInventory] Prepare Error: " << mysql_stmt_error(stmt) << '\n';
+            mysql_stmt_close(stmt);
+            return std::nullopt;
+        }
+
+        // 입력 바인딩
+        MYSQL_BIND param[1];
+        memset(param, 0, sizeof(param));
+        param[0].buffer_type = MYSQL_TYPE_LONG;
+        param[0].buffer = &userPk_;
+        param[0].is_unsigned = true;
+
+        if (mysql_stmt_bind_param(stmt, param) != 0) {
+            std::cerr << "[GetUserInventory] Bind Error: " << mysql_stmt_error(stmt) << '\n';
+            mysql_stmt_close(stmt);
+            return std::nullopt;
+        }
+
+        if (mysql_stmt_execute(stmt) != 0) {
+            std::cerr << "[GetUserInventory] Execute Error: " << mysql_stmt_error(stmt) << '\n';
+            mysql_stmt_close(stmt);
+            return std::nullopt;
+        }
+
+        // 결과 바인딩
+        uint32_t itemCode = 0;
+        uint8_t  itemType = 0;
+        uint32_t quantity = 0;
+
+        MYSQL_BIND result[3];
+        memset(result, 0, sizeof(result));
+
+        result[0].buffer_type = MYSQL_TYPE_LONG;
+        result[0].buffer = &itemCode;
+        result[0].is_unsigned = true;
+
+        result[1].buffer_type = MYSQL_TYPE_TINY;
+        result[1].buffer = &itemType;
+        result[1].is_unsigned = true;
+
+        result[2].buffer_type = MYSQL_TYPE_LONG;
+        result[2].buffer = &quantity;
+        result[2].is_unsigned = true;
+
+        mysql_stmt_bind_result(stmt, result);
+        mysql_stmt_store_result(stmt);
+
+        std::vector<InventoryItem> inventory;
+        while (mysql_stmt_fetch(stmt) == 0) {
+            InventoryItem item;
+            item.itemCode = itemCode;
+            item.itemType = itemType;
+            item.quantity = quantity;
+            inventory.push_back(item);
+        }
+
+        mysql_stmt_close(stmt);
+        return inventory;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "[GetUserInventory] Exception: " << e.what() << '\n';
         return std::nullopt;
     }
 }

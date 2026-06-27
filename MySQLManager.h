@@ -20,8 +20,9 @@ public:
 
 	std::optional<uint32_t> LoginCheck(const std::string& id, const std::string& password);
 	std::optional<UserInfo> GetUserInfo(uint32_t userPk_);
-	std::optional<Costume> GetUserCostume(uint32_t userPk_);
 	std::optional<Currency> GetUserCurrency(uint32_t userPk_);
+	std::optional<Costume> GetUserCostume(uint32_t userPk_);
+	std::optional<std::vector<InventoryItem>> GetUserInventory(uint32_t userPk_);
 
 
 	MySQLManager(const MySQLManager&) = delete;

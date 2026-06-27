@@ -34,13 +34,14 @@ public:
     void Disconnect(uint16_t connObjNum_);
 
 
-    // ====================== Equipment =======================
+    // ====================== REDIS =======================
     void SetUserCostume(uint32_t userpk_, const Costume& costume_);
+    void SetUserLocation(uint32_t userPk_, ServerType serverType_);
 
 
     // ====================== UserState =======================
     void ProcessLogin(uint16_t connObjNum_, uint16_t packetSize_, char* pPacket_);
-    void ProcessConnect(USER_LOGIN_RESPONSE& loginRes, uint32_t userpk_);
+    bool ProcessConnect(USER_LOGIN_RESPONSE& loginRes, USER_INVENTORY_PACKET& inventoryRes, uint32_t userPk_, ServerType& serverType_);
 
 
     RedisManager(const RedisManager&) = delete;

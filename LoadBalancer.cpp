@@ -24,7 +24,7 @@ std::vector<LobbyServerInfo> LoadBalancer::GetAvailableServers() {
     return available;
 }
 
-ServerAddress LoadBalancer::SelectServer() {
+ReturnServerAddress LoadBalancer::SelectServer() {
     auto servers = GetAvailableServers();
 
     // 살아있는 서버가 하나도 없으면
@@ -43,9 +43,17 @@ ServerAddress LoadBalancer::SelectServer() {
     std::cout << "[Balancer] Selected server " << result.serverId
         << " (users: " << result.userCount << ")\n";
 
-    ServerAddress sAddr;
-    if (result.serverId == 1) sAddr = ServerAddressMap[ServerType::LobbyServer01];
-    else if (result.serverId == 2) sAddr = ServerAddressMap[ServerType::LobbyServer02];
+    ReturnServerAddress sAddr;
+    if (result.serverId == 1) {
+        strncpy_s(sAddr.ip, sizeof(sAddr.ip), ServerAddressMap[ServerType::LobbyServer01].ip, _TRUNCATE);
+        sAddr.port = ServerAddressMap[ServerType::LobbyServer01].port;
+        sAddr.serverType = ServerType::LobbyServer01;
+    }
+    else if (result.serverId == 2) {
+        strncpy_s(sAddr.ip, sizeof(sAddr.ip), ServerAddressMap[ServerType::LobbyServer02].ip, _TRUNCATE);
+        sAddr.port = ServerAddressMap[ServerType::LobbyServer02].port;
+        sAddr.serverType = ServerType::LobbyServer02;
+    }
 
     // 서버 중 현재 인원 수 가장 적은 서버 주소 반환
     return sAddr;

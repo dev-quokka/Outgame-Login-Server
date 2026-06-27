@@ -35,7 +35,7 @@ CREATE TABLE user_equip_slot (
 CREATE TABLE user_inventory (
     user_pk   INT UNSIGNED NOT NULL,
     item_code INT UNSIGNED NOT NULL,
-    item_type TINYINT UNSIGNED NOT NULL,  -- 1=코스튬, 2=스킨, 3=재료
+    item_type TINYINT UNSIGNED NOT NULL,  -- 1=코스튬, 2=총스킨, 3=재료
     quantity  INT UNSIGNED NOT NULL DEFAULT 1,
     PRIMARY KEY (user_pk, item_code),
     FOREIGN KEY (user_pk) REFERENCES user(user_pk) ON DELETE CASCADE
