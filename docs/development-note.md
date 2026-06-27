@@ -112,3 +112,95 @@ heartbeat 끊기면 TTL 만료로 해당 서버 자동 배제
 로비 서버 세션 토큰 검증 및 유저 등록 처리   
 MySQL 테이블 설계 마무리   
 Redis 키 구조 문서화
+
+
+<br>
+
+
+## 2026-06-25 - 비밀번호 암호화 학습 및 유틸리티 구현
+
+### 작업 내용
+
+SHA256 + Salt 기반 비밀번호 해시 방식 학습   
+PasswordUtils 파일 추가 (OpenSSL 기반)
+
+SHA256Hash() - 문자열 SHA256 해시 후 16진수 문자열 반환   
+GenerateSalt() - OpenSSL RAND_bytes로 암호학적 난수 Salt 생성   
+
+
+### 설계 결정 이유
+
+평문 저장 대신 SHA256 + Salt로 비밀번호 보안 강화      
+Salt를 유저마다 다르게 생성해 레인보우 테이블 공격 방어         
+bcrypt 대비 구현 단순, 실제 서비스라면 bcrypt/Argon2 적용 필요      
+
+### 다음 작업
+
+LoginCheck DB 조회 구현 (prepared statement + 비밀번호 검증)   
+회원가입 시 Salt 생성 및 해시 저장 흐름 구현
+
+
+<br>
+
+
+## 2026-06-26 - 로그인 체크 및 회원가입 암호화 적용
+
+### 작업 내용
+
+- LoginCheck 구현
+
+prepared statement로 SQL injection 방지   
+DB에서 user_id로 조회 후 저장된 Salt 가져오기   
+SHA256(입력 비번 + Salt) == DB 해시값 비교   
+성공 시 user_pk 반환 (std::optional<uint32_t>)   
+
+
+- 회원가입 흐름 구현
+
+GenerateSalt()로 유저별 고유 Salt 생성   
+SHA256(비번 + Salt) 해시 후 DB 저장   
+
+
+- DB 테이블 생성
+
+DB 스키마 확정 및 schema.sql 추가   
+user, user_equip_slot, user_inventory, user_currency, friend 테이블 생성
+
+
+### 다음 작업
+
+ProcessConnect 구현 (로그인 성공 후 유저 데이터 순차 조회)    
+GetUserInfo, GetUserCurrency, GetUserCostume DB 조회 함수 구현   
+
+
+<br>
+
+
+## 2026-06-27 - 로그인 성공 후 유저 데이터 조회 구현
+
+### 작업 내용
+
+GetUserInfo - user_pk로 유저 정보(레벨/경험치) DB 조회    
+GetUserCurrency - 유저 화폐(BP/G-COIN) DB 조회   
+GetUserCostume - 현재 착용 코스튬 슬롯별 DB 조회
+ProcessConnect 구현   
+
+로그인 성공 시 위 조회들을 순차 실행   
+LoadBalancer 연동으로 최소 인원 로비 서버 배정   
+응답 패킷(USER_LOGIN_RESPONSE)에 유저 정보 + 코스튬 + 서버 주소 구성   
+
+
+
+### 설계 결정 이유
+
+로그인 응답을 단일 패킷으로 통합   
+TCP가 분할/조립을 처리하므로 구조체 크기 문제 없음   
+클라가 헤더 사이즈 확인 후 그만큼 recv하는 패턴 적용   
+
+
+
+### 다음 작업
+
+ProcessConnect 완성 (인벤토리 조회, Redis 세션 저장, JWT 토큰 발급)    
+코스튬 데이터 Redis Hash에 캐싱 (user:{pk}:equip_slot)   
+로비 서버 세션 토큰 검증 및 유저 등록 처리   

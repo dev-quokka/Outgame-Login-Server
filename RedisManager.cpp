@@ -174,7 +174,7 @@ void RedisManager::ProcessLogin(uint16_t connObjNum_, uint16_t packetSize_, char
 
     if (loginResult != std::nullopt) {
         loginRes.isSuccess = true;
-        ProcessConnect(loginRes, );
+        ProcessConnect(loginRes, loginResult.value());
 
 
     }
