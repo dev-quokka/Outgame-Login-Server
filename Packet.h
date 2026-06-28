@@ -53,13 +53,13 @@ struct USER_LOGIN_REQUEST : PACKET_HEADER { // 로그인 요청 패킷
 //};
 
 struct USER_LOGIN_RESPONSE : PACKET_HEADER { // 로그인 요청 응답 패킷
-	bool          isSuccess = false;
+	char      token[257];   // JWT 토큰
 	UserInfo      userinfo;
 	Currency      currency;
 	Costume       costume;
 	char          ip[16];
 	uint16_t      port;
-	Server
+	bool          isSuccess = false;
 };
 
 struct USER_INVENTORY_PACKET : PACKET_HEADER {

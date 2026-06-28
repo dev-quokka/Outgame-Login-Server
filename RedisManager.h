@@ -1,5 +1,6 @@
 #pragma once
 
+#include <jwt-cpp/jwt.h>
 #include <sw/redis++/redis++.h>
 #include <memory>
 #include <string>
@@ -12,6 +13,9 @@
 #include "ConnUsersManager.h"
 #include "MySQLManager.h"
 #include "LoadBalancer.h"
+
+constexpr const char* JWT_SECRET = "your_secret_key";
+constexpr int MAX_DATA_PACKET_SIZE = 256;
 
 constexpr const char* host = "127.0.0.1";
 constexpr int port = 6379;
@@ -30,13 +34,10 @@ public:
     void PushRedisPacket(const uint16_t connObjNum_, const uint32_t size_, char* recvData_);
 
 
-    // ==================== CONNECTION INTERFACE ===================
-    void Disconnect(uint16_t connObjNum_);
-
-
     // ====================== REDIS =======================
     void SetUserCostume(uint32_t userpk_, const Costume& costume_);
     void SetUserLocation(uint32_t userPk_, ServerType serverType_);
+    bool SetUserToken(uint32_t userPk_, char* token_, size_t tokenSize_);
 
 
     // ====================== UserState =======================
@@ -70,7 +71,7 @@ private:
     sw::redis::ConnectionOptions connection_options;
 
     // 136 bytes
-    boost::lockfree::queue<DataPacket> procSktQueue{ MAX_CENTER_PACKET_SIZE };
+    boost::lockfree::queue<DataPacket> procSktQueue{ MAX_DATA_PACKET_SIZE };
 
     // 80 bytes
     std::unordered_map<uint16_t, RECV_PACKET_FUNCTION> packetIDTable;

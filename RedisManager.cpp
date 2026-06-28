@@ -5,24 +5,6 @@ RedisManager& RedisManager::GetInstance() {
     return instance;
 }
 
-//void RedisManager::Connect(const std::string& host, int port) {
-//    sw::redis::ConnectionOptions opts;
-//    opts.host = host;
-//    opts.port = port;
-//    opts.socket_timeout = std::chrono::seconds(10);
-//    opts.keep_alive = true;
-//
-//    try {
-//        redis = std::make_unique<sw::redis::Redis>(opts);
-//        redis->ping();
-//        std::cout << "[Redis] Connected to " << host << ":" << port << std::endl;
-//    }
-//    catch (const sw::redis::Error& e) {
-//        std::cerr << "[Redis] Connection failed: " << e.what() << std::endl;
-//        throw;  // 연결 실패하면 서버 시작 중단
-//    }
-//}
-
 sw::redis::Redis& RedisManager::GetRedis() {
     if (!redis) {
         throw std::runtime_error("[Redis] Not connected. Call Connect() first.");
@@ -37,6 +19,7 @@ void RedisManager::Init(const uint16_t RedisThreadCnt_) {
     packetIDTable = std::unordered_map<uint16_t, RECV_PACKET_FUNCTION>();
 
     // LOGIN
+    packetIDTable[(uint16_t)PACKET_ID::USER_LOGIN_REQUEST] = &RedisManager::ProcessLogin;
 
 
     RedisRun(RedisThreadCnt_);
@@ -49,41 +32,6 @@ void RedisManager::PushRedisPacket(const uint16_t connObjNum_, const uint32_t si
     TempConnUser->WriteRecvData(recvData_, size_); // Push Data in Circualr Buffer
     DataPacket tempD(size_, connObjNum_);
     procSktQueue.push(tempD);
-}
-
-
-// ==================== CONNECTION INTERFACE ===================
-
-void RedisManager::Disconnect(uint16_t connObjNum_) {
-    if (connUsersManager->FindUser(connObjNum_)->GetPk() == 0) return; // Check the server closed
-    
-    auto tempUser = inGameUserManager->GetInGameUserByObjNum(connObjNum_);
-    auto tempPk = tempUser->GetPk();
-
-    std::string tag = "{" + std::to_string(tempPk) + "}";
-    std::string userInfokey = "userinfo:" + tag;
-    std::string equipmentkey = "equipment:" + tag;
-    std::string consumablekey = "consumables:" + tag;
-    std::string materialkey = "materials:" + tag;
-
-    try {
-        auto pipe = redis->pipeline(tag);
-
-        redis->hset(userInfokey, "userstate", "offline"); // Set user status to "offline" in Redis Cluster
-        redis->expire(equipmentkey, std::chrono::seconds(180)); // ttl 3분 설정
-        redis->expire(consumablekey, std::chrono::seconds(180)); // ttl 3분 설정
-        redis->expire(materialkey, std::chrono::seconds(180)); // ttl 3분 설정
-
-        pipe.exec();
-    }
-    catch (const sw::redis::Error& e) {
-        std::cerr << "Redis error : " << e.what() << std::endl;
-        return;
-    }
-    catch (const std::exception& e) {
-        std::cerr << "Exception error : " << e.what() << std::endl;
-    }
-
 }
 
 
@@ -182,6 +130,44 @@ void RedisManager::SetUserLocation(uint32_t userPk_, ServerType serverType_) {
     }
 }
 
+bool RedisManager::SetUserToken(uint32_t userPk_, char* token_, size_t tokenSize_) {
+    try {
+        // JWT 토큰 생성
+        std::string token = jwt::create()
+            .set_issuer("LoginServer")
+            .set_subject("LobbyAccess")
+            .set_payload_claim("user_pk",
+                jwt::claim(std::to_string(userPk_)))
+            .set_expires_at(std::chrono::system_clock::now() +
+                std::chrono::seconds{ 300 })
+            .sign(jwt::algorithm::hs256{ JWT_SECRET });
+
+        // Redis
+        // key: "jwtcheck:{userPk}"
+        // field: token값, value: userPk
+        std::string key = "jwtcheck:{" + std::to_string(userPk_) + "}";
+
+        auto pipe = redis->pipeline();
+        pipe.hset(key, token, std::to_string(userPk_))
+            .expire(key, 300);
+        pipe.exec();
+
+        // 생성된 토큰을 패킷에 복사
+        strncpy_s(token_, tokenSize_, token.c_str(), _TRUNCATE);
+
+        std::cout << "[SetUserToken] Token issued. userPk: " << userPk_ << '\n';
+        return true;
+    }
+    catch (const sw::redis::Error& e) {
+        std::cerr << "[SetUserToken] Redis error. userPk: " << userPk_ << " / " << e.what() << '\n';
+        return false;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "[SetUserToken] Exception. userPk: " << userPk_ << " / " << e.what() << '\n';
+        return false;
+    }
+}
+
 
 // ====================== UserState =======================
 
@@ -205,6 +191,11 @@ void RedisManager::ProcessLogin(uint16_t connObjNum_, uint16_t packetSize_, char
         if (loginRes.isSuccess) { // 성공했을 때만 레디스 세팅하기
             SetUserCostume(loginResult.value(), loginRes.costume);
             SetUserLocation(loginResult.value(), serverType);
+
+            // JWT 토큰 발급 실패 시 로그인 실패 처리
+            if (!SetUserToken(loginResult.value(), loginRes.token, sizeof(loginRes.token))) {
+                loginRes.isSuccess = false;
+            }
         }
     } 
 
@@ -269,10 +260,6 @@ bool RedisManager::ProcessConnect(USER_LOGIN_RESPONSE& loginRes, USER_INVENTORY_
     strncpy_s(loginRes.ip, sizeof(loginRes.ip), tempServer.ip, _TRUNCATE);
     loginRes.port = tempServer.port;
     serverType_ = tempServer.serverType;
-
-
-    // JWT 토큰 생성 후 레디스에 올리기 (Redis)
-    
 
     return true;
 }
