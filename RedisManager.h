@@ -37,12 +37,13 @@ public:
     // ====================== REDIS =======================
     void SetUserCostume(uint32_t userpk_, const Costume& costume_);
     void SetUserLocation(uint32_t userPk_, ServerType serverType_);
-    bool SetUserToken(uint32_t userPk_, char* token_, size_t tokenSize_);
+    bool SetUserToken(const std::string& userId_, uint32_t userPk_, char* token_, size_t tokenSize_);
 
+    std::vector<FriendInfo> BuildFriendList(const std::vector<FriendInfoDB>& dbFriends_);
 
     // ====================== UserState =======================
     void ProcessLogin(uint16_t connObjNum_, uint16_t packetSize_, char* pPacket_);
-    bool ProcessConnect(USER_LOGIN_RESPONSE& loginRes, USER_INVENTORY_PACKET& inventoryRes, uint32_t userPk_, ServerType& serverType_);
+    bool ProcessConnect(USER_LOGIN_RESPONSE& loginRes, USER_INVENTORY_PACKET& inventoryRes, USER_FRIEND_PACKET& friendRes, uint32_t userPk_, ServerType& serverType_);
 
 
     RedisManager(const RedisManager&) = delete;

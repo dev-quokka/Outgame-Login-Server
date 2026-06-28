@@ -8,11 +8,8 @@
 #include "UserTypes.h"
 
 constexpr uint16_t MAX_IP_LEN = 32;
-constexpr uint16_t MAX_INVENTORY_SIZE = 100; // 최대 아이템 수
 constexpr uint16_t MAX_SERVER_USERS = 128;  
-constexpr uint16_t MAX_USER_ID_LEN = 256;
-constexpr uint16_t MAX_USER_PASSWORD_LEN = 256;
-constexpr uint16_t MAX_JWT_TOKEN_LEN = 256;
+constexpr uint16_t MAX_JWT_TOKEN_LEN = 257;
 
 struct DataPacket {
 	uint32_t dataSize;
@@ -35,36 +32,41 @@ struct PACKET_HEADER
 	uint16_t PacketId;
 };
 
+enum class LoginFailCode : uint8_t {
+	None = 0,
+	WrongPassword = 1,  // 비번 틀림
+	ServerError = 2,  // DB/Redis 오류
+	NoServer = 3,  // 로비 서버 없음
+};
+
 
 // ======================= CENTER SERVER =======================
 
 struct USER_LOGIN_REQUEST : PACKET_HEADER { // 로그인 요청 패킷
-	char userId[MAX_USER_ID_LEN + 1];
 	char userPassword[MAX_USER_PASSWORD_LEN + 1];
+	char userId[MAX_USER_ID_LEN + 1];
 };
-
-//struct USER_LOGIN_RESPONSE : PACKET_HEADER { // 로그인 요청 응답 패킷
-//	UserInfo userinfo;
-//	std::string ip;
-//	Costume costume;
-//	Currency currency;
-//	uint16_t port;
-//	bool isSuccess = false;
-//};
 
 struct USER_LOGIN_RESPONSE : PACKET_HEADER { // 로그인 요청 응답 패킷
 	char      token[257];   // JWT 토큰
 	UserInfo      userinfo;
+	char userId[MAX_USER_ID_LEN + 1];
 	Currency      currency;
 	Costume       costume;
 	char          ip[16];
 	uint16_t      port;
 	bool          isSuccess = false;
+	uint8_t  failCode = (uint8_t)LoginFailCode::None;
 };
 
 struct USER_INVENTORY_PACKET : PACKET_HEADER {
 	uint16_t		itemCount = 0;
 	InventoryItem   items[MAX_INVENTORY_SIZE];
+};
+
+struct USER_FRIEND_PACKET : PACKET_HEADER {
+	uint16_t   friendCount = 0;
+	FriendInfo friends[MAX_FRIEND_SIZE];
 };
 
 struct SYNCRONIZE_LEVEL_REQUEST : PACKET_HEADER {
@@ -220,4 +222,5 @@ enum class PACKET_ID : uint16_t {
 	USER_LOGIN_RESPONSE = 2,
 
 	USER_INVENTORY_PACKET = 3,
+	USER_FRIEND_PACKET = 4,
 };

@@ -23,7 +23,7 @@ public:
 	std::optional<Currency> GetUserCurrency(uint32_t userPk_);
 	std::optional<Costume> GetUserCostume(uint32_t userPk_);
 	std::optional<std::vector<InventoryItem>> GetUserInventory(uint32_t userPk_);
-
+	std::optional<std::vector<FriendInfoDB>> GetUserFriendsDB(uint32_t userPk_);
 
 	MySQLManager(const MySQLManager&) = delete;
 	MySQLManager& operator=(const MySQLManager&) = delete;

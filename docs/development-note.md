@@ -204,3 +204,60 @@ TCP가 분할/조립을 처리하므로 구조체 크기 문제 없음
 ProcessConnect 완성 (인벤토리 조회, Redis 세션 저장, JWT 토큰 발급)    
 코스튬 데이터 Redis Hash에 캐싱 (user:{pk}:equip_slot)   
 로비 서버 세션 토큰 검증 및 유저 등록 처리   
+
+
+<br>
+
+
+## 2026-06-28 - 로그인 프로세스 완성 및 친구 목록 구현
+
+### 작업 내용
+
+- 로그인 프로세스 완성
+
+ProcessConnect 구조 개선
+
+bool 반환 + out 매개변수(inventoryRes, friendRes, serverType) 구조로 변경   
+모든 조회 성공 후 한꺼번에 send하는 방식으로 불필요한 트래픽 방지    
+성공 시 loginRes + inventoryRes + friendRes 순차 전송    
+실패 시 loginRes(isSuccess=false)만 전송  
+
+
+- 인벤토리 조회 구현
+
+GetUserInventory - user_inventory 테이블 조회   
+USER_INVENTORY_PACKET 구조체 추가 (InventoryItem 배열)   
+InventoryItem - itemCode, itemType, quantity   
+
+
+- 친구 목록 조회 구현
+
+GetUserFriendsDB - DB 조회용 내부 구조체 (FriendInfoDB, pk 포함)    
+friend + user 테이블 JOIN으로 friendPk + friendId + status 조회
+
+
+BuildFriendList - DB 결과를 패킷용으로 변환    
+친구인 것들만 Redis pipeline으로 한 번에 접속 상태 조회 (N번 -> 1번 왕복)   
+pk 제외한 FriendInfo(friendId + friendStatus + onlineStatus)로 변환   
+
+
+- 로그인 실패 코드 추가
+
+LoginFailCode enum 추가 (WrongPassword, ServerError, NoServer)   
+USER_LOGIN_RESPONSE에 failCode 필드 추가   
+각 실패 지점에서 원인 코드 설정   
+
+
+- JWT 토큰 구조 생성
+
+userId + token을 Redis에 저장 (jwtcheck:{userId})   
+pk 클라 노출 없이 userId 기반으로 토큰 검증    
+1회용 토큰 - 검증 후 즉시 삭제   
+
+
+
+### 다음 작업
+
+로비 서버 JWT 토큰 검증 및 유저 등록 처리
+친구 접속/로그아웃 pub/sub 알림 구현
+로그인 서버 Disconnect 처리
