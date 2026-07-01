@@ -39,7 +39,6 @@ public:
     void SetUserLocation(uint32_t userPk_, ServerType serverType_);
     bool SetUserToken(const std::string& userId_, uint32_t userPk_, char* token_, size_t tokenSize_);
 
-    void NotifyFriendOnline(const uint32_t userPk_, const std::vector<FriendInfoDB>& friends_);
     std::vector<FriendInfo> BuildFriendList(const std::vector<FriendInfoDB>& dbFriends_);
 
     // ====================== UserState =======================

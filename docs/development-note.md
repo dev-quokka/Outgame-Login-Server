@@ -261,3 +261,100 @@ pk 클라 노출 없이 userId 기반으로 토큰 검증
 로비 서버 JWT 토큰 검증 및 유저 등록 처리
 친구 접속/로그아웃 pub/sub 알림 구현
 로그인 서버 Disconnect 처리
+
+
+<br>
+
+
+## 2026-06-29 - 로비 서버 Redis pub/sub 구독 구조 구축
+
+### 작업 내용
+
+- 로비 서버
+
+LobbyRedisSubscriber 클래스 추가
+
+sub.consume() blocking 루프 생성
+HandleLobbyEvent type 숫자 파싱 후 switch 분기
+HandleFriendOnline/Offline/Accepted/Removed/CostumeChange 뼈대 구현
+ParseUintField 헬퍼 - JSON 메시지에서 정수 필드 추출
+
+
+LobbyEventType enum 추가   
+
+FriendOnline(1), FriendOffline(2), CostumeChange(3), FriendAccepted(6), FriendRemoved(7)
+
+
+
+- 로그인 서버
+
+pub/sub 채널 구조 전환
+
+{서버명}:events 타겟 채널별 publish
+
+
+PublishToUsers 헬퍼 구현
+
+타겟 pk 목록을 pipeline으로 서버 위치 일괄 조회      
+온라인 유저만 필터링, 서버별 중복 없이 publish    
+개별 예외 처리로 일부 조회 실패해도 나머지는 계속 처리   
+
+
+NotifyFriendOnline 수정 - PublishToUsers 활용   
+NotifyFriendOffline 구현 - Disconnect 시 DB 조회 후 친구들에게 알림   
+ProcessFriendAccept/Remove pub/sub 부분 서버별 채널로 수정   
+
+
+### 다음 작업
+
+Handle 함수별 내부 로직 구현 (세션 순회 + 패킷 전송)
+
+
+<br>
+
+
+## 2026-06-30 - Handle 함수 내부 로직 및 ConnUsersManager 확장
+
+### 작업 내용
+
+- 로비 서버
+
+ConnUsersManager에 pk - objNum 역방향 매핑 추가
+
+
+RedisManager에 로컬 유저 알림 함수 추가   
+
+NotifyFriendStatusToLocalUsers - ForEachUser 순회하며 친구 캐시 확인 후 패킷 전송   
+NotifyCostumeChangeToLocalUsers - 파티원 대상 코스튬 변경 알림 (개발중)
+
+
+HandleFriendOffline/Online 내부 로직 구현
+
+RedisManager::NotifyFriendStatusToLocalUsers 호출로 단순화   
+LobbyRedisSubscriber는 처리만하고 실제 send는 RedisManager에서 사용
+
+
+
+설계 결정 이유
+
+LobbyRedisSubscriber가 직접 send하지 않는 이유
+
+유저에게 패킷 보내는 책임은 이미 RedisManager가 갖고 있는 역할   
+LobbyRedisSubscriber가 ConnUsersManager까지 알게 되면 의존성이 늘어남   
+역할 분리: Subscriber는 메시지 해석만, RedisManager는 행동만
+
+
+pk-objNum 매핑에 TBB 대신 mutex 선택
+
+tbb::concurrent_hash_map은 버킷 단위 락으로 고경합 환경에서 유리   
+이 맵은 로그인/로그아웃 시에만 쓰기 발생하는 저빈도 자료구조   
+락 경합이 사실상 없어 단순한 mutex로 충분, 복잡도 증가 대비 이득 없다고 판단
+추후 관리 유저수가 많아지면 테스트를 통해 도입 여부 판단
+
+
+
+### 다음 작업
+
+파티 시스템 Redis 구조 설계 및 구현   
+NotifyCostumeChangeToLocalUsers 완성   
+HandleFriendAccepted/Removed 내부 로직 구현   

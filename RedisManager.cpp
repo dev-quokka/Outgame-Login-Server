@@ -161,29 +161,6 @@ bool RedisManager::SetUserToken(const std::string& userId_, uint32_t userPk_, ch
     }
 }
 
-void RedisManager::NotifyFriendOnline(const uint32_t userPk_, const std::vector<FriendInfoDB>& friends_) {
-    // 친구인 것만 확인
-    bool hasFriend = false;
-    for (const auto& f : friends_) {
-        if (f.friendStatus == 1) {
-            hasFriend = true;
-            break;
-        }
-    }
-    if (!hasFriend) return;
-
-    try {
-        // {"type":1,"data":{"userPk_":"1"}} 형태
-        std::string message = R"({"type":1,"data":{"userPk":")" + std::to_string(userPk_) + R"("}})";
-
-        redis->publish("lobby:events", message);
-        std::cout << "[NotifyFriendOnline] published. userPk: " << userPk_ << '\n';
-    }
-    catch (const std::exception& e) {
-        std::cerr << "[NotifyFriendOnline] Error: " << e.what() << '\n';
-    }
-}
-
 // ====================== UserState =======================
 
 void RedisManager::ProcessLogin(uint16_t connObjNum_, uint16_t packetSize_, char* pPacket_) {
@@ -217,11 +194,6 @@ void RedisManager::ProcessLogin(uint16_t connObjNum_, uint16_t packetSize_, char
             if (!SetUserToken(loginReqPacket->userId, loginResult.value(), loginRes.token, sizeof(loginRes.token))) {
                 loginRes.isSuccess = false;
                 loginRes.failCode = (uint8_t)LoginFailCode::ServerError;
-            }
-
-            // 친구들에게 접속 알림 (실패해도 로그인 유지)
-            if (loginRes.isSuccess) {
-                NotifyFriendOnline(loginResult.value(), friendsDB);
             }
         }
     } 
