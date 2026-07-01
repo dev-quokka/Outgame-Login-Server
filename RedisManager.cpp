@@ -161,6 +161,28 @@ bool RedisManager::SetUserToken(const std::string& userId_, uint32_t userPk_, ch
     }
 }
 
+void RedisManager::NotifyFriendOnline(const uint32_t userPk_, const std::vector<FriendInfoDB>& friends_) {
+    // 친구인 것만 확인
+    bool hasFriend = false;
+    for (const auto& f : friends_) {
+        if (f.friendStatus == 1) {
+            hasFriend = true;
+            break;
+        }
+    }
+    if (!hasFriend) return;
+
+    try {
+        // {"type":1,"data":{"userPk_":"1"}} 형태
+        std::string message = R"({"type":1,"data":{"userPk":")" + std::to_string(userPk_) + R"("}})";
+
+        redis->publish("lobby:events", message);
+        std::cout << "[NotifyFriendOnline] published. userPk: " << userPk_ << '\n';
+    }
+    catch (const std::exception& e) {
+        std::cerr << "[NotifyFriendOnline] Error: " << e.what() << '\n';
+    }
+}
 
 // ====================== UserState =======================
 
@@ -183,7 +205,9 @@ void RedisManager::ProcessLogin(uint16_t connObjNum_, uint16_t packetSize_, char
 
     if (loginResult.has_value()) {
         ServerType serverType;
-        loginRes.isSuccess = ProcessConnect(loginRes, inventoryRes, friendRes, loginResult.value(), serverType);
+        std::vector<FriendInfoDB> friendsDB;
+
+        loginRes.isSuccess = ProcessConnect(loginRes, inventoryRes, friendRes, friendsDB, loginResult.value(), serverType);
 
         if (loginRes.isSuccess) { // 성공했을 때만 레디스 세팅하기
             SetUserCostume(loginResult.value(), loginRes.costume);
@@ -192,6 +216,12 @@ void RedisManager::ProcessLogin(uint16_t connObjNum_, uint16_t packetSize_, char
             // JWT 토큰 발급 실패 시 로그인 실패 처리
             if (!SetUserToken(loginReqPacket->userId, loginResult.value(), loginRes.token, sizeof(loginRes.token))) {
                 loginRes.isSuccess = false;
+                loginRes.failCode = (uint8_t)LoginFailCode::ServerError;
+            }
+
+            // 친구들에게 접속 알림 (실패해도 로그인 유지)
+            if (loginRes.isSuccess) {
+                NotifyFriendOnline(loginResult.value(), friendsDB);
             }
         }
     } 
@@ -210,7 +240,7 @@ void RedisManager::ProcessLogin(uint16_t connObjNum_, uint16_t packetSize_, char
     }
 }
 
-bool RedisManager::ProcessConnect(USER_LOGIN_RESPONSE& loginRes, USER_INVENTORY_PACKET& inventoryRes, USER_FRIEND_PACKET& friendRes, uint32_t userPk_, ServerType& serverType_) {
+bool RedisManager::ProcessConnect(USER_LOGIN_RESPONSE& loginRes, USER_INVENTORY_PACKET& inventoryRes, USER_FRIEND_PACKET& friendRes, std::vector<FriendInfoDB>& friendsDB_, uint32_t userPk_, ServerType& serverType_) {
 
     // 유저 정보 불러와서 전달해주기 (DB)
     auto tempUserInfo = MySQLManager::GetInstance().GetUserInfo(userPk_);
@@ -263,7 +293,7 @@ bool RedisManager::ProcessConnect(USER_LOGIN_RESPONSE& loginRes, USER_INVENTORY_
         loginRes.failCode = (uint8_t)LoginFailCode::ServerError;
         return false;
     }
-
+    friendsDB_ = tempFriendsDB.value();
     // Redis에서 접속 상태 붙여서 변환
     auto friendList = BuildFriendList(tempFriendsDB.value());
     friendRes.friendCount = static_cast<uint16_t>(friendList.size());
@@ -290,26 +320,20 @@ std::vector<FriendInfo> RedisManager::BuildFriendList(const std::vector<FriendIn
     std::vector<FriendInfo> result;
     if (dbFriends_.empty()) return result;
 
-    // 친구인 것들만 pipeline에 추가
-    // 요청중(friendStatus=0)은 어차피 오프라인 취급이라 Redis 조회 불필요
-    std::vector<int> friendIdx;  // pipeline에 넣은 친구의 인덱스
+    // 전부 pipeline에 추가 (친구/요청중 구분 없이)
     auto pipe = redis->pipeline();
-
     for (int i = 0; i < (int)dbFriends_.size(); i++) {
-        if (dbFriends_[i].friendStatus == 1) {  // 친구인 경우만
-            std::string key = "user:" + std::to_string(dbFriends_[i].friendPk);
-            pipe.hget(key, "state");
-            friendIdx.push_back(i);
-        }
+        std::string key = "user:" + std::to_string(dbFriends_[i].friendPk);
+        pipe.hget(key, "state");
     }
 
-    // pipeline 한 번에 실행 후 Redis 왕복 1회로 전체 상태 조회
-    // (친구 수만큼 개별 조회하면 N번 왕복, pipeline이면 1번)
+    // pipeline 한 번에 실행
+    // 친구 수만큼 개별 조회하면 N번 왕복, pipeline이면 1번
     std::vector<sw::redis::OptionalString> states;
     try {
         auto replies = pipe.exec();
-        for (int i = 0; i < (int)friendIdx.size(); i++) {
-            try { // get<타입>(인덱스)로 하나씩 꺼내기
+        for (int i = 0; i < (int)dbFriends_.size(); i++) {
+            try {
                 states.push_back(replies.get<sw::redis::OptionalString>(i));
             }
             catch (...) {
@@ -318,28 +342,23 @@ std::vector<FriendInfo> RedisManager::BuildFriendList(const std::vector<FriendIn
         }
     }
     catch (const std::exception& e) {
-        std::cerr << "[BuildFriendList] Pipeline Error: " << e.what() << '\n';
+        std::cerr << "[BuildFriendList] Pipeline Error: "
+            << e.what() << '\n';
     }
 
-    // DB 결과 + Redis 상태를 합쳐서 패킷용 FriendInfo로 변환
-    // pk는 여기서 제외하기
+    // DB 결과 + Redis 상태 합쳐서 패킷용으로 변환
+    // pk는 여기서 제외, 친구/요청중 동일하게 처리
     int pipeIdx = 0;
     for (int i = 0; i < (int)dbFriends_.size(); i++) {
         FriendInfo info;
         strncpy_s(info.friendId, sizeof(info.friendId), dbFriends_[i].friendId, _TRUNCATE);
         info.friendStatus = dbFriends_[i].friendStatus;
-        info.onlineStatus = 0;  // 기본값은 오프라인
+        info.onlineStatus = 0;  // 기본값 오프라인
 
-        // 요청중인 경우 onlineStatus는 0(오프라인)으로 그대로
-        if (dbFriends_[i].friendStatus == 1) {
-            // pipeline 결과에서 상태 꺼내기
-            if (pipeIdx < (int)states.size() &&
-                states[pipeIdx].has_value()) {
-                const auto& state = *states[pipeIdx];
-                if (state == "lobby")  info.onlineStatus = 1;
-                else if (state == "ingame") info.onlineStatus = 2;
-            }
-            pipeIdx++;
+        if (i < (int)states.size() && states[i].has_value()) {
+            const auto& state = *states[i];
+            if (state == "lobby")  info.onlineStatus = 1;
+            else if (state == "ingame") info.onlineStatus = 2;
         }
 
         result.push_back(info);
