@@ -47,8 +47,10 @@ CREATE TABLE friend (
     friend_pk  INT UNSIGNED NOT NULL,
     status     TINYINT UNSIGNED NOT NULL DEFAULT 0,  -- 0=요청중, 1=친구
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  -- 친구가 된 시각 (첫 Insert때만 입력)
-    PRIMARY KEY (user_pk, friend_id), --  복합pk
+    PRIMARY KEY (user_pk, friend_pk), --  복합pk
     FOREIGN KEY (user_pk)   REFERENCES user(user_pk) ON DELETE CASCADE,
     FOREIGN KEY (friend_pk) REFERENCES user(user_pk) ON DELETE CASCADE
 );
+CREATE INDEX idx_friend_pk ON friend(friend_pk);
+
 
